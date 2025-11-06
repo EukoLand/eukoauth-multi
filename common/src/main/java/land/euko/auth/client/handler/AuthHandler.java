@@ -9,6 +9,7 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -44,10 +45,12 @@ public class AuthHandler {
             try {
                 String token = loadAuthToken();
 
-//                if ("invalid-token".equals(token)) {
-//                    callback.onError("Не удалось загрузить токен авторизации");
-//                    return;
-//                }
+                if (!normalized.equals("localhost")) {
+                    if ("invalid-token".equals(token)) {
+                        callback.onError("Не удалось загрузить токен авторизации");
+                        return;
+                    }
+                }
 
                 boolean success = sendAuthRequest(token, callback.getUsername());
 
@@ -150,23 +153,23 @@ public class AuthHandler {
 
     private String loadAuthToken() {
         try {
-            Path configFile = configDir.resolve("auth").resolve("auth.json");
+            // Читаем файл из корня jar-файла
+            InputStream inputStream = AuthHandler.class.getResourceAsStream("/token");
 
-            if (!Files.exists(configFile)) {
-                System.err.println("[EukoAuth] ✗ Файл конфига не найден: " + configFile);
+            if (inputStream == null) {
+                System.err.println("[EukoAuth] ✗ Файл токена не найден внутри jar");
                 return "invalid-token";
             }
 
-            String content = Files.readString(configFile);
-            JsonObject config = gson.fromJson(content, JsonObject.class);
+            String token = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8).trim();
+            inputStream.close();
 
-            if (!config.has("authToken")) {
-                System.err.println("[EukoAuth] ✗ Токен не найден в конфиге");
+            if (token.isEmpty()) {
+                System.err.println("[EukoAuth] ✗ Файл token пустой");
                 return "invalid-token";
             }
 
-            String token = config.get("authToken").getAsString();
-            System.out.println("[EukoAuth] ✓ Токен успешно загружен");
+            System.out.println("[EukoAuth] ✓ Токен успешно загружен из jar: "+token);
             return token;
 
         } catch (Exception e) {

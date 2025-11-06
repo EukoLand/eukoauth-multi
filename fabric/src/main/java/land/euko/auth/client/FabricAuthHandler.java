@@ -34,12 +34,6 @@ public class FabricAuthHandler {
 
                 @Override
                 public void onSuccess() {
-                    if (client.player != null) {
-                        client.player.displayClientMessage(
-                                Component.literal("§a[EukoAuth] Авторизация успешна!"),
-                                false
-                        );
-                    }
                 }
             };
 
