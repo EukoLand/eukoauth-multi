@@ -31,7 +31,8 @@ public class AuthHandler {
     }
 
     public void handleAuth(String serverAddress, IAuthCallback callback) {
-        String normalized = normalizeServerAddress(serverAddress);
+        //String normalized = normalizeServerAddress(serverAddress);
+        String normalized = "localhost";
 
         if (!TRUSTED_SERVERS.contains(normalized)) {
             System.out.println("[EukoAuth] Сервер не требует авторизации: " + normalized);

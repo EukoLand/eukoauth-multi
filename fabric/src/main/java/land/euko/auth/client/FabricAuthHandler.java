@@ -1,39 +1,41 @@
 package land.euko.auth.client;
 
 import land.euko.auth.client.handler.AuthHandler;
+import net.fabricmc.fabric.api.client.networking.v1.ClientLoginConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
-import net.minecraft.network.chat.Component;
 
 public class FabricAuthHandler {
 
     private static AuthHandler authHandler;
+    private static String lastServerAddress = "";
 
     public static void init() {
         authHandler = new AuthHandler(FabricLoader.getInstance().getConfigDir());
 
-        // Авторизация при подключении к серверу
-        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
-            String serverAddress = getServerAddress(client);
+        // Используем LOGIN событие - оно срабатывает во время handshake
+        ClientLoginConnectionEvents.INIT.register((handler, client) -> {
+            System.out.println("[EukoAuth] ClientLoginConnectionEvents.INIT triggered");
+
+            // Пробуем получить адрес
+            String serverAddress = lastServerAddress;
+            System.out.println("[EukoAuth] Server address from cache: " + serverAddress);
 
             AuthHandler.IAuthCallback callback = new AuthHandler.IAuthCallback() {
                 @Override
                 public String getUsername() {
-                    return client.player != null ? client.player.getName().getString() : "Unknown";
+                    return client.getUser().getName();
                 }
 
                 @Override
                 public void onError(String errorMessage) {
-                    if (client.player != null) {
-                        client.player.connection.getConnection().disconnect(
-                                Component.literal("§c[EukoAuth] " + errorMessage)
-                        );
-                    }
+                    System.err.println("[EukoAuth] Ошибка авторизации: " + errorMessage);
                 }
 
                 @Override
                 public void onSuccess() {
+                    System.out.println("[EukoAuth] Запрос авторизации отправлен");
                 }
             };
 
@@ -47,10 +49,9 @@ public class FabricAuthHandler {
         System.out.println("[EukoAuth] ✓ Fabric handler инициализирован");
     }
 
-    private static String getServerAddress(Minecraft client) {
-        if (client.getCurrentServer() != null) {
-            return client.getCurrentServer().ip;
-        }
-        return "";
+    // Этот метод должен вызываться из миксина!
+    public static void setServerAddress(String address) {
+        lastServerAddress = address;
+        System.out.println("[EukoAuth] Server address captured: " + address);
     }
 }
