@@ -5,22 +5,27 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientLoginConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientHandshakePacketListenerImpl;
+import net.minecraft.network.Connection;
+
+import java.lang.reflect.Field;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 
 public class FabricAuthHandler {
 
     private static AuthHandler authHandler;
-    private static String lastServerAddress = "";
 
     public static void init() {
         authHandler = new AuthHandler(FabricLoader.getInstance().getConfigDir());
 
-        // Используем LOGIN событие - оно срабатывает во время handshake
         ClientLoginConnectionEvents.INIT.register((handler, client) -> {
-            System.out.println("[EukoAuth] ClientLoginConnectionEvents.INIT triggered");
+            String serverAddress = getServerAddr(handler);
 
-            // Пробуем получить адрес
-            String serverAddress = lastServerAddress;
-            System.out.println("[EukoAuth] Server address from cache: " + serverAddress);
+            if (serverAddress == null) {
+                System.err.println("[EukoAuth] Не удалось получить адрес сервера");
+                return;
+            }
 
             AuthHandler.IAuthCallback callback = new AuthHandler.IAuthCallback() {
                 @Override
@@ -49,9 +54,30 @@ public class FabricAuthHandler {
         System.out.println("[EukoAuth] ✓ Fabric handler инициализирован");
     }
 
-    // Этот метод должен вызываться из миксина!
-    public static void setServerAddress(String address) {
-        lastServerAddress = address;
-        System.out.println("[EukoAuth] Server address captured: " + address);
+    private static String getServerAddr(ClientHandshakePacketListenerImpl handshakePacketListener) {
+        try {
+            Field connectionField = ClientHandshakePacketListenerImpl.class.getDeclaredField("connection");
+            connectionField.setAccessible(true);
+            Connection connection = (Connection) connectionField.get(handshakePacketListener);
+
+            SocketAddress address = connection.getRemoteAddress();
+            if (address instanceof InetSocketAddress inetAddress) {
+                String host = inetAddress.getHostString();
+                int port = inetAddress.getPort();
+                System.out.println("[EukoAuth] Подключение к: " + host + ":" + port);
+                return host + ":" + port;
+            }
+        } catch (NoSuchFieldException e) {
+            System.err.println("[EukoAuth] Поле 'connection' не найдено. Возможно, изменилась версия Minecraft.");
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            System.err.println("[EukoAuth] Не удалось получить доступ к полю 'connection'.");
+            e.printStackTrace();
+        } catch (Exception e) {
+            System.err.println("[EukoAuth] Неизвестная ошибка при получении адреса сервера.");
+            e.printStackTrace();
+        }
+
+        return null;
     }
 }

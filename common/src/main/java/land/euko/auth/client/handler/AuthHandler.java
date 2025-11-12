@@ -31,8 +31,7 @@ public class AuthHandler {
     }
 
     public void handleAuth(String serverAddress, IAuthCallback callback) {
-        //String normalized = normalizeServerAddress(serverAddress);
-        String normalized = "localhost";
+        String normalized = normalizeServerAddress(serverAddress);
 
         if (!TRUSTED_SERVERS.contains(normalized)) {
             System.out.println("[EukoAuth] Сервер не требует авторизации: " + normalized);
@@ -91,7 +90,6 @@ public class AuthHandler {
             String jsonData = gson.toJson(data);
             System.out.println("[EukoAuth] Отправка данных: " + jsonData);
 
-            // Отправка запроса
             try (OutputStream os = conn.getOutputStream()) {
                 byte[] input = jsonData.getBytes(StandardCharsets.UTF_8);
                 os.write(input, 0, input.length);
@@ -103,7 +101,6 @@ public class AuthHandler {
             if (responseCode == 200) {
                 return true;
             } else {
-                // Читаем сообщение об ошибке
                 try (BufferedReader br = new BufferedReader(
                         new InputStreamReader(conn.getErrorStream(), StandardCharsets.UTF_8))) {
                     StringBuilder response = new StringBuilder();
@@ -154,7 +151,6 @@ public class AuthHandler {
 
     private String loadAuthToken() {
         try {
-            // Читаем файл из корня jar-файла
             InputStream inputStream = AuthHandler.class.getResourceAsStream("/token");
 
             if (inputStream == null) {
