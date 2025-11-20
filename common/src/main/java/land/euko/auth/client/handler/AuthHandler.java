@@ -16,7 +16,7 @@ import java.util.concurrent.CompletableFuture;
 public class AuthHandler {
 
     private static final Gson gson = new Gson();
-    private static final String AUTH_API_URL = "http://localhost:8080/mc/auth";
+    private static final String AUTH_API_URL = "https://api.euko.land/v1/mc/auth";
 
     private static final Set<String> TRUSTED_SERVERS = Set.of(
             "euko.land",
@@ -40,7 +40,6 @@ public class AuthHandler {
 
         System.out.println("[EukoAuth] Начало авторизации на сервере: " + normalized);
 
-        // Выполняем авторизацию асинхронно
         CompletableFuture.runAsync(() -> {
             try {
                 String token = loadAuthToken();
@@ -55,14 +54,14 @@ public class AuthHandler {
                 boolean success = sendAuthRequest(token, callback.getUsername());
 
                 if (success) {
-                    System.out.println("[EukoAuth] ✓ Авторизация успешна");
+                    System.out.println("[EukoAuth] Авторизация успешна");
                     callback.onSuccess();
                 } else {
                     callback.onError("Ошибка авторизации на сервере");
                 }
 
             } catch (Exception e) {
-                System.err.println("[EukoAuth] ✗ Критическая ошибка: " + e.getMessage());
+                System.err.println("[EukoAuth] Критическая ошибка: " + e.getMessage());
                 e.printStackTrace();
                 callback.onError("Неполадки с авторизацией: " + e.getMessage());
             }
@@ -154,7 +153,7 @@ public class AuthHandler {
             InputStream inputStream = AuthHandler.class.getResourceAsStream("/token");
 
             if (inputStream == null) {
-                System.err.println("[EukoAuth] ✗ Файл токена не найден внутри jar");
+                System.err.println("[EukoAuth] Файл токена не найден внутри jar");
                 return "invalid-token";
             }
 
@@ -166,11 +165,11 @@ public class AuthHandler {
                 return "invalid-token";
             }
 
-            System.out.println("[EukoAuth] ✓ Токен успешно загружен из jar: "+token);
+            System.out.println("[EukoAuth] Токен успешно загружен из jar");
             return token;
 
         } catch (Exception e) {
-            System.err.println("[EukoAuth] ✗ Ошибка загрузки токена: " + e.getMessage());
+            System.err.println("[EukoAuth] Ошибка загрузки токена: " + e.getMessage());
             e.printStackTrace();
             return "invalid-token";
         }

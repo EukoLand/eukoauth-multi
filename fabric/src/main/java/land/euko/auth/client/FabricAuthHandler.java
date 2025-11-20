@@ -4,6 +4,7 @@ import land.euko.auth.client.handler.AuthHandler;
 import net.fabricmc.fabric.api.client.networking.v1.ClientLoginConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.loader.api.FabricLoader;
+import net.fabricmc.loader.api.MappingResolver;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientHandshakePacketListenerImpl;
 import net.minecraft.network.Connection;
@@ -56,9 +57,11 @@ public class FabricAuthHandler {
 
     private static String getServerAddr(ClientHandshakePacketListenerImpl handshakePacketListener) {
         try {
-            Field connectionField = ClientHandshakePacketListenerImpl.class.getDeclaredField("connection");
-            connectionField.setAccessible(true);
-            Connection connection = (Connection) connectionField.get(handshakePacketListener);
+            Connection connection = getConnection(handshakePacketListener);
+            if (connection == null) {
+                System.err.println("[EukoAuth] Connection == null (возможно, соединение ещё не установлено)");
+                return null;
+            }
 
             SocketAddress address = connection.getRemoteAddress();
             if (address instanceof InetSocketAddress inetAddress) {
@@ -66,18 +69,38 @@ public class FabricAuthHandler {
                 int port = inetAddress.getPort();
                 System.out.println("[EukoAuth] Подключение к: " + host + ":" + port);
                 return host + ":" + port;
+            } else {
+                System.err.println("[EukoAuth] Не удалось определить тип SocketAddress: " + address);
             }
+
         } catch (NoSuchFieldException e) {
-            System.err.println("[EukoAuth] Поле 'connection' не найдено. Возможно, изменилась версия Minecraft.");
+            System.err.println("[EukoAuth] Поле 'connection' не найдено. Возможно, изменилась версия Minecraft или mappings.");
             e.printStackTrace();
         } catch (IllegalAccessException e) {
-            System.err.println("[EukoAuth] Не удалось получить доступ к полю 'connection'.");
+            System.err.println("[EukoAuth] Нет доступа к полю 'connection'.");
             e.printStackTrace();
-        } catch (Exception e) {
-            System.err.println("[EukoAuth] Неизвестная ошибка при получении адреса сервера.");
+        } catch (Throwable e) {
+            System.err.println("[EukoAuth] Ошибка при получении адреса сервера:");
             e.printStackTrace();
         }
 
         return null;
+    }
+
+    private static Connection getConnection(ClientHandshakePacketListenerImpl handshakePacketListener) throws NoSuchFieldException, IllegalAccessException {
+        MappingResolver resolver = FabricLoader.getInstance().getMappingResolver();
+
+        String mappedField = resolver.mapFieldName(
+                "intermediary",
+                "net.minecraft.class_635", // ClientHandshakePacketListenerImpl
+                "field_3707",              // connection
+                "Lnet/minecraft/class_2535;" // Connection
+        );
+
+        Field connectionField = handshakePacketListener.getClass().getDeclaredField(mappedField);
+        connectionField.setAccessible(true);
+
+        Connection connection = (Connection) connectionField.get(handshakePacketListener);
+        return connection;
     }
 }
